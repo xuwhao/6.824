@@ -14,16 +14,27 @@ import "strconv"
 // and reply for an RPC.
 //
 
-type ExampleArgs struct {
-	X int
+const RPCFunctionPrefix = "Coordinator"
+const (
+	GetTask  string = RPCFunctionPrefix + ".AssignTask"
+	MarkDone string = RPCFunctionPrefix + ".MarkDone"
+)
+
+type Task struct {
+	Type      int
+	Id        int
+	NReduce   int
+	inputFile string
 }
 
-type ExampleReply struct {
-	Y int
-}
+const (
+	MAP int = iota
+	REDUCE
+	WAITING
+	EXIT
+)
 
 // Add your RPC definitions here.
-
 
 // Cook up a unique-ish UNIX-domain socket name
 // in /var/tmp, for the coordinator.

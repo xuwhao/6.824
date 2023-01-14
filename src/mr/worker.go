@@ -1,79 +1,85 @@
 package mr
 
-import "fmt"
-import "log"
-import "net/rpc"
-import "hash/fnv"
+import (
+	"6.824/logger"
+	"hash/fnv"
+	"log"
+	"net/rpc"
+	"time"
+)
 
-
-//
-// Map functions return a slice of KeyValue.
-//
+// KeyValue Map functions return a slice of KeyValue.
 type KeyValue struct {
 	Key   string
 	Value string
 }
 
-//
 // use ihash(key) % NReduce to choose the reduce
 // task number for each KeyValue emitted by Map.
-//
 func ihash(key string) int {
 	h := fnv.New32a()
-	h.Write([]byte(key))
+	_, _ = h.Write([]byte(key))
 	return int(h.Sum32() & 0x7fffffff)
 }
 
-
-//
-// main/mrworker.go calls this function.
-//
+// Worker main/mrworker.go calls this function.
 func Worker(mapf func(string, string) []KeyValue,
 	reducef func(string, []string) string) {
 
 	// Your worker implementation here.
-
 	// uncomment to send the Example RPC to the coordinator.
-	// CallExample()
+	for true {
+		task, err := CallGetTask()
+		if err != nil {
+			// todo
+		}
 
-}
-
-//
-// example function to show how to make an RPC call to the coordinator.
-//
-// the RPC argument and reply types are defined in rpc.go.
-//
-func CallExample() {
-
-	// declare an argument structure.
-	args := ExampleArgs{}
-
-	// fill in the argument(s).
-	args.X = 99
-
-	// declare a reply structure.
-	reply := ExampleReply{}
-
-	// send the RPC request, wait for the reply.
-	// the "Coordinator.Example" tells the
-	// receiving server that we'd like to call
-	// the Example() method of struct Coordinator.
-	ok := call("Coordinator.Example", &args, &reply)
-	if ok {
-		// reply.Y should be 100.
-		fmt.Printf("reply.Y %v\n", reply.Y)
-	} else {
-		fmt.Printf("call failed!\n")
+		switch task.Type {
+		case MAP:
+		// todo
+		case REDUCE:
+		//todo
+		case WAITING:
+		// todo
+		case EXIT:
+			return
+		}
 	}
 }
 
-//
+func CallGetTask() (Task, error) {
+	args := ""
+	reply := Task{}
+
+	err := call(GetTask, &args, &reply)
+
+	if err == nil {
+		logger.Debug(logger.DDebug, "Got task: %v", reply)
+	} else {
+		logger.Debug(logger.DError, "get task failed, err: %w, try again later...", err)
+		cnt := 2
+		for cnt < 10 {
+			time.Sleep(time.Second)
+			err = call(GetTask, &args, &reply)
+			if err != nil {
+				logger.Debug(logger.DError, "try %d times, err: %w", cnt, err)
+			} else {
+				logger.Debug(logger.DDebug, "Got task: %v", reply)
+				break
+			}
+			cnt++
+		}
+
+	}
+
+	return reply, err
+}
+
 // send an RPC request to the coordinator, wait for the response.
 // usually returns true.
 // returns false if something goes wrong.
-//
-func call(rpcname string, args interface{}, reply interface{}) bool {
-	// c, err := rpc.DialHTTP("tcp", "127.0.0.1"+":1234")
+func call(rpcname string, args interface{}, reply interface{}) error {
+
 	sockname := coordinatorSock()
 	c, err := rpc.DialHTTP("unix", sockname)
 	if err != nil {
@@ -81,11 +87,5 @@ func call(rpcname string, args interface{}, reply interface{}) bool {
 	}
 	defer c.Close()
 
-	err = c.Call(rpcname, args, reply)
-	if err == nil {
-		return true
-	}
-
-	fmt.Println(err)
-	return false
+	return c.Call(rpcname, args, reply)
 }

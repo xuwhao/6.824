@@ -3,8 +3,6 @@ package mr
 import (
 	"6.824/logger"
 	"hash/fnv"
-	"log"
-	"net/rpc"
 	"time"
 )
 
@@ -23,69 +21,97 @@ func ihash(key string) int {
 }
 
 // Worker main/mrworker.go calls this function.
-func Worker(mapf func(string, string) []KeyValue,
-	reducef func(string, []string) string) {
+func Worker(mapf func(string, string) []KeyValue, reducef func(string, []string) string) {
 
 	// Your worker implementation here.
 	// uncomment to send the Example RPC to the coordinator.
-	for true {
-		task, err := CallGetTask()
+	doing := true
+	for doing {
+		// get a map/reduce/waiting/exit task
+		task := Task{}
+		caller := RPCCaller[*Task, *Task]{RPCName: GetTask, Args: &task, Reply: &task, DebugFmt: "got Task"}
+		err := caller.remoteCall()
 		if err != nil {
 			// todo
 		}
-
 		switch task.Type {
 		case MAP:
-		// todo
+			// todo
+			err := ExecuteMapTask(mapf, &task)
+			if err != nil {
+				// todo
+			}
+			logger.Debug(logger.DInfo, "Execute map task successfully!")
+			doing = false
 		case REDUCE:
-		//todo
+			//todo
+			err := ExecuteReduceTask(reducef, &task)
+			if err != nil {
+				// todo
+			}
+			logger.Debug(logger.DInfo, "Execute reduce task successfully!")
+			doing = false
 		case WAITING:
-		// todo
+			// todo
+			time.Sleep(time.Second)
 		case EXIT:
 			return
 		}
 	}
 }
 
-func CallGetTask() (Task, error) {
-	args := ""
-	reply := Task{}
-
-	err := call(GetTask, &args, &reply)
-
-	if err == nil {
-		logger.Debug(logger.DDebug, "Got task: %v", reply)
-	} else {
-		logger.Debug(logger.DError, "get task failed, err: %w, try again later...", err)
-		cnt := 2
-		for cnt < 10 {
-			time.Sleep(time.Second)
-			err = call(GetTask, &args, &reply)
-			if err != nil {
-				logger.Debug(logger.DError, "try %d times, err: %w", cnt, err)
-			} else {
-				logger.Debug(logger.DDebug, "Got task: %v", reply)
-				break
-			}
-			cnt++
-		}
-
-	}
-
-	return reply, err
+func ExecuteMapTask(mapf func(string, string) []KeyValue, task *Task) error {
+	return nil
 }
+
+func ExecuteReduceTask(reducef func(string, []string) string, task *Task) error {
+	return nil
+}
+
+//func () remoteCall(context RPCCaller[_, _]) error {
+//	rpcName, args, reply, cnt := context.RPCName, context.Args, context.Reply, 0
+//	var err error
+//
+//	for true {
+//		if cnt == 10 {
+//			break
+//		}
+//		err = call(rpcName, args, reply)
+//		if err == nil {
+//			logger.Debug(logger.DDebug, context.DebugFmt+" [%v]", reply)
+//			break
+//		} else {
+//			cnt++
+//			logger.Debug(logger.DError, context.DebugFmt+" %d times failed, err [%w]", cnt, err)
+//			time.Sleep(time.Second)
+//		}
+//	}
+//
+//	return err
+//}
+
+//func remoteCall(context RPCCaller[any, any, any, any]) (*Task, error) {
+//	args, reply, cnt := context.Args, context.Reply, 0
+//	var err error
+//
+//	for true {
+//		if cnt == 10 {
+//			break
+//		}
+//		err = call(GetTask, &args, &reply)
+//		if err == nil {
+//			logger.Debug(logger.DDebug, "Got task [%v]", reply)
+//			break
+//		} else {
+//			cnt++
+//			logger.Debug(logger.DError, "get task failed [%d] times, err [%w]", cnt, err)
+//			time.Sleep(time.Second)
+//		}
+//	}
+//
+//	return &reply, err
+//}
 
 // send an RPC request to the coordinator, wait for the response.
 // usually returns true.
 // returns false if something goes wrong.
-func call(rpcname string, args interface{}, reply interface{}) error {
-
-	sockname := coordinatorSock()
-	c, err := rpc.DialHTTP("unix", sockname)
-	if err != nil {
-		log.Fatal("dialing:", err)
-	}
-	defer c.Close()
-
-	return c.Call(rpcname, args, reply)
-}

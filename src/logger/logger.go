@@ -53,11 +53,12 @@ func init() {
 	log.SetFlags(log.Flags() &^ (log.Ldate | log.Ltime))
 }
 
-func Debug(topic logTopic, format string, a ...interface{}) {
+func Debug(topic logTopic, format string, a ...any) {
 	if debugVerbosity >= 1 {
+		current := time.Now()
 		t := time.Since(debugStart).Microseconds()
 		t /= 100
-		prefix := fmt.Sprintf("%06d %v ", t, string(topic))
+		prefix := fmt.Sprintf("%v %8d %-6v ", current.Round(0), t, string(topic))
 		format = prefix + format
 		log.Printf(format, a...)
 	}

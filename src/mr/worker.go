@@ -24,18 +24,16 @@ func ihash(key string) int {
 // Worker main/mrworker.go calls this function.
 func Worker(mapf func(string, string) []KeyValue, reducef func(string, []string) string) {
 
-	// Your worker implementation here.
-	// uncomment to send the Example RPC to the coordinator.
-	task := Task{}
-	caller := RPCCaller[*Task, *Task]{RPCName: GetTask, Args: &task, Reply: &task, DebugFmt: "got Task"}
-	DoneCaller := RPCCaller[*Task, *Task]{RPCName: MarkDone, Args: &task, Reply: &task, DebugFmt: "mark done"}
 	var err error
 
-	rand.Seed(time.Now().UnixNano())
+	caller := RPCCaller[Task, *Task]{RPCName: GetTask, DebugFmt: "got Task"}
+	DoneCaller := RPCCaller[Task, *Task]{RPCName: MarkDone, DebugFmt: "mark done"}
 
+	rand.Seed(time.Now().UnixNano())
 	doing := true
 	for doing {
-		err = caller.remoteCall()
+		emptyArgs, task := Task{}, Task{}
+		err = caller.remoteCall(emptyArgs, &task)
 		if err != nil {
 			// todo
 		}
@@ -43,15 +41,16 @@ func Worker(mapf func(string, string) []KeyValue, reducef func(string, []string)
 		switch task.Type {
 		case MAP:
 			// todo
-			delay := rand.Intn(6)
-			logger.Debug(logger.DInfo, "sleep %d s", delay)
-			time.Sleep(time.Second * time.Duration(delay))
+			//delay := rand.Intn(6)
+			//logger.Debug(logger.DInfo, "sleep %d s", delay)
+			//time.Sleep(time.Second * 10)
 			err = ExecuteMapTask(mapf, &task)
 			if err != nil {
 				// todo
 			}
 
-			err = DoneCaller.remoteCall()
+			doneTask := Task{}
+			err = DoneCaller.remoteCall(task, &doneTask)
 			if err != nil {
 				// todo
 			}

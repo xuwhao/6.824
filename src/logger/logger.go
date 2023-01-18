@@ -50,6 +50,7 @@ func init() {
 	debugVerbosity = getVerbosity()
 	debugStart = time.Now()
 	log.SetFlags(log.Flags() &^ (log.Ldate | log.Ltime))
+	log.SetOutput(os.Stdout)
 }
 
 func Debug(topic logTopic, format string, a ...any) {

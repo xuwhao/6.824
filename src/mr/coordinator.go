@@ -32,7 +32,7 @@ type TaskContext struct {
 }
 
 func (ctx *TaskContext) String() string {
-	return fmt.Sprintf("%p, {Task: %v, TaskPhase: %d", ctx, ctx.Task, ctx.TaskPhase)
+	return fmt.Sprintf("{%p, {Task: %v, TaskPhase: %d}", ctx, ctx.Task, ctx.TaskPhase)
 }
 
 type Coordinator struct {
@@ -49,7 +49,7 @@ type Coordinator struct {
 
 // Your code here -- RPC handlers for the worker to call.
 
-func (c *Coordinator) MarkDone(args *Task, reply *Task) error {
+func (c *Coordinator) MarkDone(args Task, reply *Task) error {
 	ctx, ok := c.ContextMap.Get(args.Id)
 	if !ok {
 		//todo
@@ -57,31 +57,31 @@ func (c *Coordinator) MarkDone(args *Task, reply *Task) error {
 	ctx.Lock.Lock() // use X lock because of the lower probability of worker crashed
 	defer ctx.Lock.Unlock()
 
-	logger.Debug(logger.DDebug, "try to mark task context done [%v]", ctx)
+	logger.Debug(logger.DDebug, "try to mark task context done, args %+v, ctx %+v", args, ctx)
 	if args.Version == ctx.Task.Version { // if not match, task args is assigned to other worker because caller is timeout or crashed
 		ctx.TaskPhase++
 		c.Lock.Lock()
 		c.Processing--
 		c.ReduceID++
-		logger.Debug(logger.DDebug, "mark done task context [%v], processing [%d], ReduceID [%d], coordinator phase [%d]", ctx, c.Processing, c.ReduceID, c.Phase)
+		logger.Debug(logger.DDebug, "mark done task context [%v], processing %d, ReduceID %d, coordinator phase %d", ctx, c.Processing, c.ReduceID, c.Phase)
 		if c.ReduceID == c.NMap && c.Processing == 0 { // all map tasks done
 			c.Phase = MAPPED
-			logger.Debug(logger.DDebug, "coordinator enter MAPPED phase, processing [%d], ReduceID [%d]", c.Processing, c.ReduceID)
+			logger.Debug(logger.DDebug, "coordinator enter MAPPED phase, processing %d, ReduceID %d", c.Processing, c.ReduceID)
 		} else if c.ReduceID == c.NMap+c.NReduce-1 && c.Processing == 0 { // all reduce tasks done
 			c.Phase = REDUCED
-			logger.Debug(logger.DDebug, "coordinator enter REDUCED phase, processing [%d], ReduceID [%d]", c.Processing, c.ReduceID)
+			logger.Debug(logger.DDebug, "coordinator enter REDUCED phase, processing %d, ReduceID %d", c.Processing, c.ReduceID)
 		}
 		c.Lock.Unlock()
 
 		// todo: new a reduce task and add to c.assignCh
 	}
-	//*reply = *(ctx.Task)
+	*reply = *(ctx.Task)
 	return nil
 }
 
-func (c *Coordinator) AssignTask(args *Task, reply *Task) error {
+func (c *Coordinator) AssignTask(args Task, reply *Task) error {
 	c.Lock.RLock()
-	logger.Debug(logger.DDebug, "assign task, coordinator phase [%d]", c.Phase)
+	logger.Debug(logger.DDebug, "assign task, coordinator phase %d", c.Phase)
 	switch c.Phase {
 	case ORIGIN:
 		//todo
@@ -108,34 +108,37 @@ func (c *Coordinator) AssignTask(args *Task, reply *Task) error {
 	return nil
 }
 
-func (c *Coordinator) assignExitTask(args *Task, reply *Task) {
+func (c *Coordinator) assignExitTask(args Task, reply *Task) {
 
 }
 
-func (c *Coordinator) assignReduceTask(args *Task, reply *Task) {
+func (c *Coordinator) assignReduceTask(args Task, reply *Task) {
 
 }
 
-func (c *Coordinator) assignWaitingTask(args *Task, reply *Task) {
+func (c *Coordinator) assignWaitingTask(args Task, reply *Task) {
 	reply.Id = -1
 	reply.Type = WAITING
 
 	logger.Debug(logger.DDebug, "assign waiting task")
 }
 
-func (c *Coordinator) assignMapTask(args *Task, reply *Task) {
+func (c *Coordinator) assignMapTask(args Task, reply *Task) {
 	// assign map task
 	ctx := <-c.assignCh
 	ctx.Lock.Lock()
 	ctx.TaskPhase = MAPPING
+
 	*reply = *(ctx.Task)
-	logger.Debug(logger.DDebug, "assign map task context [%+v], reply [%+v]", ctx, reply)
+	reply.Type = ctx.Task.Type
+	reply.Id = ctx.Task.Id
+	logger.Debug(logger.DDebug, "assign map task context %+v, reply %+v", ctx, reply)
 	ctx.Lock.Unlock()
 
 	c.Processing++
 	if c.Processing > 0 && c.Processing+c.ReduceID == c.NMap {
 		c.Phase = MAPPING
-		logger.Debug(logger.DDebug, "coordinator enter MAPPING phase, processing [%d], ReduceID [%d]", c.Processing, c.ReduceID)
+		logger.Debug(logger.DDebug, "coordinator enter MAPPING phase, processing %d, ReduceID %d", c.Processing, c.ReduceID)
 	}
 
 	// crash test callback for crash handler
@@ -150,14 +153,14 @@ func (c *Coordinator) assignMapTask(args *Task, reply *Task) {
 			if ctx.TaskPhase != MAPPED {
 				c.Lock.Lock() // redo when AssignTask return
 				if c.Processing < 1 {
-					logger.Debug(logger.DError, "task callback minus c.Processing error, processing [%d], ReduceID [%d]", c.Processing, c.ReduceID)
+					logger.Debug(logger.DError, "task callback minus c.Processing error, processing %d, ReduceID %d", c.Processing, c.ReduceID)
 				}
 				c.Processing--
 				c.Phase = ORIGIN // must not in MAPPING phase because at least one task need to assign
 				ctx.TaskPhase = ORIGIN
 				ctx.Task.Version += 1
 				c.assignCh <- ctx
-				logger.Debug(logger.DWarn, "task crashed! map task context [%+v], processing [%d], ReduceID [%d]", ctx, c.Processing, c.ReduceID)
+				logger.Debug(logger.DWarn, "task crashed! map task context %+v, processing %d, ReduceID %d", ctx, c.Processing, c.ReduceID)
 				c.Lock.Unlock()
 			}
 			ctx.Lock.Unlock()
@@ -241,7 +244,7 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 		c.assignCh <- ctx //  push unassigned mapping tasks to channel
 	}
 
-	logger.Debug(logger.DInfo, "create Coordinator [%+v], contextMap [%+v]", c, *c.ContextMap)
+	logger.Debug(logger.DInfo, "create Coordinator %+v, contextMap %+v", c, c.ContextMap)
 
 	c.server()
 	c.crashHandler()

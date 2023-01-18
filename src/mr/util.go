@@ -1,6 +1,10 @@
 package mr
 
-import "sync"
+import (
+	"fmt"
+	"strings"
+	"sync"
+)
 
 type ConcurrentMap[T comparable, E any] struct {
 	Lock *sync.RWMutex
@@ -23,4 +27,19 @@ func (c *ConcurrentMap[T, E]) Get(key T) (E, bool) {
 	defer c.Lock.RUnlock()
 	v, ok := c.Map[key]
 	return v, ok
+}
+
+func (c *ConcurrentMap[T, E]) String() string {
+	var build strings.Builder
+	//build.WriteString(s1)
+	//build.WriteString(s2)
+	//s3 := build.String()
+	build.WriteString("{")
+	c.Lock.RLock()
+	for k, v := range c.Map {
+		build.WriteString(fmt.Sprintf("{%d: %+v}, ", k, v))
+	}
+	c.Lock.RUnlock()
+	build.WriteString("}")
+	return build.String()
 }

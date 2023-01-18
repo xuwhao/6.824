@@ -38,7 +38,7 @@ type Task struct {
 }
 
 func (task *Task) String() string {
-	return fmt.Sprintf("%p, {Type: %d, Id: %d, NReduce: %d, InputFile: %s, Version: %d}",
+	return fmt.Sprintf("{%p, {Type: %d, Id: %d, NReduce: %d, InputFile: %s, Version: %d}}",
 		task, task.Type, task.Id, task.NReduce, task.InputFile, task.Version)
 }
 
@@ -51,20 +51,18 @@ const (
 
 type RPCCaller[T any, E any] struct {
 	RPCName  string
-	Args     T
-	Reply    E
 	DebugFmt string
 }
 
-func (caller RPCCaller[T, E]) remoteCall() error {
-	rpcName, args, reply, cnt := caller.RPCName, caller.Args, caller.Reply, 0
+func (caller RPCCaller[T, E]) remoteCall(args T, reply E) error {
+	cnt := 0
 	var err error
 
 	for true {
 		if cnt == 10 {
 			break
 		}
-		err = call(rpcName, args, reply)
+		err = call(caller.RPCName, args, reply)
 		if err == nil {
 			logger.Debug(logger.DDebug, caller.DebugFmt+" task[%v]", reply)
 			break

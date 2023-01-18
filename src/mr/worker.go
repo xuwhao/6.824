@@ -1,10 +1,11 @@
 package mr
 
 import (
-	"6.824/logger"
 	"hash/fnv"
 	"math/rand"
 	"time"
+
+	"6.824/logger"
 )
 
 // KeyValue Map functions return a slice of KeyValue.
@@ -35,43 +36,53 @@ func Worker(mapf func(string, string) []KeyValue, reducef func(string, []string)
 		emptyArgs, task := Task{}, Task{}
 		err = caller.remoteCall(emptyArgs, &task)
 		if err != nil {
-			// todo
+			logger.Debug(logger.DError, "rpc call failed, maybe coordinator exited, bye bye!")
 		}
 
 		switch task.Type {
 		case MAP:
 			// todo
-			//delay := rand.Intn(6)
-			//logger.Debug(logger.DInfo, "sleep %d s", delay)
-			//time.Sleep(time.Second * 10)
+			delay := rand.Intn(6) + 1
+			logger.Debug(logger.DInfo, "sleep %d s", delay)
+			time.Sleep(time.Second * time.Duration(delay))
 			err = ExecuteMapTask(mapf, &task)
 			if err != nil {
-				// todo
+				//todo
 			}
 
 			doneTask := Task{}
 			err = DoneCaller.remoteCall(task, &doneTask)
 			if err != nil {
-				// todo
+				logger.Debug(logger.DError, "done rpc call failed, maybe coordinator exited, bye bye!")
 			}
-
 			//logger.Debug(logger.DInfo, "Execute map task successfully!")
-			//return
 		case REDUCE:
 			//todo
+			delay := rand.Intn(6) + 1
+			logger.Debug(logger.DInfo, "sleep %d s", delay)
+			time.Sleep(time.Second * time.Duration(delay))
 			err = ExecuteReduceTask(reducef, &task)
 			if err != nil {
-				// todo
+
 			}
-			logger.Debug(logger.DInfo, "Execute reduce task successfully!")
+
+			doneTask := Task{}
+			err = DoneCaller.remoteCall(task, &doneTask)
+			if err != nil {
+				logger.Debug(logger.DError, "done rpc call failed, maybe coordinator exited, bye bye!")
+			}
+			// logger.Debug(logger.DInfo, "Execute reduce task successfully!")
 		case WAITING:
 			// todo
 			time.Sleep(time.Second)
 		case EXIT:
 			doing = false
+		case UNDEFIDED:
+			logger.Debug(logger.DError, "got UNDEFIDED task %+v", task)
 		}
 		time.Sleep(time.Second)
 	}
+	logger.Debug(logger.DInfo, "bye bye!")
 }
 
 func ExecuteMapTask(mapf func(string, string) []KeyValue, task *Task) error {
@@ -81,6 +92,14 @@ func ExecuteMapTask(mapf func(string, string) []KeyValue, task *Task) error {
 func ExecuteReduceTask(reducef func(string, []string) string, task *Task) error {
 	return nil
 }
+
+// need to test
+/*
+1. seq(1 worker)
+2. seq crash
+3. curr
+4. curr crash
+*/
 
 //func () remoteCall(context RPCCaller[_, _]) error {
 //	rpcName, args, reply, cnt := context.RPCName, context.Args, context.Reply, 0

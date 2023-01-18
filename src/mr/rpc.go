@@ -7,14 +7,14 @@ package mr
 //
 
 import (
-	"6.824/logger"
 	"fmt"
 	"log"
 	"net/rpc"
 	"os"
-	"time"
+	"strconv"
+
+	"6.824/logger"
 )
-import "strconv"
 
 //
 // example to show how to declare the arguments
@@ -30,20 +30,21 @@ const (
 type TaskType int
 type TaskID int
 type Task struct {
-	Type      TaskType
-	Id        TaskID
-	NReduce   int
-	InputFile string
-	Version   int
+	Type       TaskType
+	Id         TaskID
+	NReduce    int
+	InputFiles []string
+	Version    int
 }
 
 func (task *Task) String() string {
-	return fmt.Sprintf("{%p, {Type: %d, Id: %d, NReduce: %d, InputFile: %s, Version: %d}}",
-		task, task.Type, task.Id, task.NReduce, task.InputFile, task.Version)
+	return fmt.Sprintf("{%p, {Type: %d, Id: %d, NReduce: %d, InputFiles: %+v, Version: %d}}",
+		task, task.Type, task.Id, task.NReduce, task.InputFiles, task.Version)
 }
 
 const (
-	MAP TaskType = iota
+	UNDEFIDED TaskType = iota
+	MAP
 	REDUCE
 	WAITING
 	EXIT
@@ -55,24 +56,12 @@ type RPCCaller[T any, E any] struct {
 }
 
 func (caller RPCCaller[T, E]) remoteCall(args T, reply E) error {
-	cnt := 0
-	var err error
-
-	for true {
-		if cnt == 10 {
-			break
-		}
-		err = call(caller.RPCName, args, reply)
-		if err == nil {
-			logger.Debug(logger.DDebug, caller.DebugFmt+" task[%v]", reply)
-			break
-		} else {
-			cnt++
-			logger.Debug(logger.DError, caller.DebugFmt+" %d times failed, err [%w]", cnt, err)
-			time.Sleep(time.Second)
-		}
+	err := call(caller.RPCName, args, reply)
+	if err == nil {
+		logger.Debug(logger.DDebug, caller.DebugFmt+" task[%v]", reply)
+	} else {
+		logger.Debug(logger.DError, caller.DebugFmt+" err [%w]", err)
 	}
-
 	return err
 }
 

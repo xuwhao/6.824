@@ -3,6 +3,7 @@ package mr
 import (
 	"6.824/logger"
 	"hash/fnv"
+	"math/rand"
 	"time"
 )
 
@@ -25,38 +26,52 @@ func Worker(mapf func(string, string) []KeyValue, reducef func(string, []string)
 
 	// Your worker implementation here.
 	// uncomment to send the Example RPC to the coordinator.
+	task := Task{}
+	caller := RPCCaller[*Task, *Task]{RPCName: GetTask, Args: &task, Reply: &task, DebugFmt: "got Task"}
+	DoneCaller := RPCCaller[*Task, *Task]{RPCName: MarkDone, Args: &task, Reply: &task, DebugFmt: "mark done"}
+	var err error
+
+	rand.Seed(time.Now().UnixNano())
+
 	doing := true
 	for doing {
-		// get a map/reduce/waiting/exit task
-		task := Task{}
-		caller := RPCCaller[*Task, *Task]{RPCName: GetTask, Args: &task, Reply: &task, DebugFmt: "got Task"}
-		err := caller.remoteCall()
+		err = caller.remoteCall()
 		if err != nil {
 			// todo
 		}
+
 		switch task.Type {
 		case MAP:
 			// todo
-			err := ExecuteMapTask(mapf, &task)
+			delay := rand.Intn(6)
+			logger.Debug(logger.DInfo, "sleep %d s", delay)
+			time.Sleep(time.Second * time.Duration(delay))
+			err = ExecuteMapTask(mapf, &task)
 			if err != nil {
 				// todo
 			}
-			logger.Debug(logger.DInfo, "Execute map task successfully!")
-			doing = false
+
+			err = DoneCaller.remoteCall()
+			if err != nil {
+				// todo
+			}
+
+			//logger.Debug(logger.DInfo, "Execute map task successfully!")
+			//return
 		case REDUCE:
 			//todo
-			err := ExecuteReduceTask(reducef, &task)
+			err = ExecuteReduceTask(reducef, &task)
 			if err != nil {
 				// todo
 			}
 			logger.Debug(logger.DInfo, "Execute reduce task successfully!")
-			doing = false
 		case WAITING:
 			// todo
 			time.Sleep(time.Second)
 		case EXIT:
-			return
+			doing = false
 		}
+		time.Sleep(time.Second)
 	}
 }
 

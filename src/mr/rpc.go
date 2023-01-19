@@ -5,7 +5,6 @@ package mr
 //
 
 import (
-	"log"
 	"net/rpc"
 	"os"
 	"strconv"
@@ -39,7 +38,8 @@ func call(rpcname string, args interface{}, reply interface{}) error {
 	sockname := coordinatorSock()
 	c, err := rpc.DialHTTP("unix", sockname)
 	if err != nil {
-		log.Fatal("dialing:", err)
+		logger.Debug(logger.DWarn, "connection refused, maybe coordinator exited, bye bye!")
+		os.Exit(0)
 	}
 	defer c.Close()
 

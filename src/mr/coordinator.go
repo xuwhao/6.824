@@ -17,6 +17,10 @@ import (
 /* ------------------------------- Data Structures START ------------------------------- */
 
 const EXPIRE = 10 // reassign tasks after EXPIRE seconds
+const PREFIX = "mr-"
+
+var TMPDIR string = "./"
+var OUTDIR string = "./"
 
 type TaskID int
 
@@ -139,7 +143,7 @@ func (c *Coordinator) MarkDone(args Task, reply *Task) error {
 				for i := 0; i < c.NReduce; i++ {
 					files := []string{}
 					for j := 0; j < c.NMap; j++ {
-						file := fmt.Sprintf("mr-%d-%d", j, i)
+						file := fmt.Sprintf(TMPDIR+PREFIX+"%d-%d", j, i)
 						files = append(files, file)
 					}
 					tk := NewTaskContext(REDUCE, TaskID(c.ReduceID), files, c.NReduce, MAPPED)
@@ -233,14 +237,14 @@ func (c *Coordinator) assignMRTask(reply *Task, taskPhase Phase, prompt string) 
 			if ctx.TaskPhase != taskPhase+1 { // task is not done
 				c.Lock.Lock() // redo when AssignTask return
 				c.Processing--
-				if c.Processing < 1 {
-					logger.Debug(logger.DError, "task callback, c.Processing less than 0, processing %d, DoneCnt %d", c.Processing, c.DoneCnt)
+				if c.Processing < 0 {
+					logger.Debug(logger.DError, "task callback "+prompt+", c.Processing less than 0, processing %d, ReduceID %d, DoneCnt %d", c.Processing, c.ReduceID, c.DoneCnt)
 				}
 				c.Phase = taskPhase - 1 // MAPPING - 1 = ORIGIN, REDUCEING -1 = MAPPED
 				ctx.TaskPhase = taskPhase - 1
 				ctx.Task.Version += 1
 				c.taskChannel <- ctx
-				logger.Debug(logger.DWarn, "task crashed! "+prompt+" task context %+v, processing %d, DoneCnt %d", ctx, c.Processing, c.DoneCnt)
+				logger.Debug(logger.DWarn, "task crashed! "+prompt+" task context %+v, processing %d, ReduceID %d, DoneCnt %d", ctx, c.Processing, c.ReduceID, c.DoneCnt)
 				c.Lock.Unlock()
 			}
 			ctx.Lock.Unlock()

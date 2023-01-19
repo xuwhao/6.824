@@ -58,7 +58,8 @@ func Debug(topic logTopic, format string, a ...any) {
 		current := time.Now()
 		t := time.Since(debugStart).Microseconds()
 		t /= 100
-		prefix := fmt.Sprintf("%v %8d %-6v ", current.Round(0), t, string(topic))
+
+		prefix := fmt.Sprintf("%+v %8d %6v ", current.Format("2006-01-02 15:04:05.00000000"), t, string(topic))
 		format = prefix + format
 		log.Printf(format, a...)
 	}

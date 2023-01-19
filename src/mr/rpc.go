@@ -3,11 +3,8 @@ package mr
 //
 // RPC definitions.
 //
-// remember to capitalize all names.
-//
 
 import (
-	"fmt"
 	"log"
 	"net/rpc"
 	"os"
@@ -16,38 +13,10 @@ import (
 	"6.824/logger"
 )
 
-//
-// example to show how to declare the arguments
-// and reply for an RPC.
-//
-
 const RPCFunctionPrefix = "Coordinator"
 const (
 	GetTask  string = RPCFunctionPrefix + ".AssignTask"
 	MarkDone string = RPCFunctionPrefix + ".MarkDone"
-)
-
-type TaskType int
-type TaskID int
-type Task struct {
-	Type       TaskType
-	Id         TaskID
-	NReduce    int
-	InputFiles []string
-	Version    int
-}
-
-func (task *Task) String() string {
-	return fmt.Sprintf("{%p, {Type: %d, Id: %d, NReduce: %d, InputFiles: %+v, Version: %d}}",
-		task, task.Type, task.Id, task.NReduce, task.InputFiles, task.Version)
-}
-
-const (
-	UNDEFIDED TaskType = iota
-	MAP
-	REDUCE
-	WAITING
-	EXIT
 )
 
 type RPCCaller[T any, E any] struct {
@@ -58,9 +27,9 @@ type RPCCaller[T any, E any] struct {
 func (caller RPCCaller[T, E]) remoteCall(args T, reply E) error {
 	err := call(caller.RPCName, args, reply)
 	if err == nil {
-		logger.Debug(logger.DDebug, caller.DebugFmt+" task[%v]", reply)
+		logger.Debug(logger.DDebug, caller.DebugFmt+" %+v", reply)
 	} else {
-		logger.Debug(logger.DError, caller.DebugFmt+" err [%w]", err)
+		logger.Debug(logger.DError, caller.DebugFmt+" err %w", err)
 	}
 	return err
 }
@@ -76,8 +45,6 @@ func call(rpcname string, args interface{}, reply interface{}) error {
 
 	return c.Call(rpcname, args, reply)
 }
-
-// Add your RPC definitions here.
 
 // Cook up a unique-ish UNIX-domain socket name
 // in /var/tmp, for the coordinator.

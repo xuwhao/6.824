@@ -42,9 +42,9 @@ func Worker(mapf func(string, string) []KeyValue, reducef func(string, []string)
 		switch task.Type {
 		case MAP:
 			// todo
-			delay := rand.Intn(6) + 1
-			logger.Debug(logger.DInfo, "sleep %d s", delay)
-			time.Sleep(time.Second * time.Duration(delay))
+			// delay := rand.Intn(6)
+			// logger.Debug(logger.DInfo, "sleep %d s", delay)
+			// time.Sleep(time.Second * time.Duration(delay))
 			err = ExecuteMapTask(mapf, &task)
 			if err != nil {
 				//todo
@@ -58,9 +58,9 @@ func Worker(mapf func(string, string) []KeyValue, reducef func(string, []string)
 			//logger.Debug(logger.DInfo, "Execute map task successfully!")
 		case REDUCE:
 			//todo
-			delay := rand.Intn(6) + 1
-			logger.Debug(logger.DInfo, "sleep %d s", delay)
-			time.Sleep(time.Second * time.Duration(delay))
+			// delay := rand.Intn(6)
+			// logger.Debug(logger.DInfo, "sleep %d s", delay)
+			// time.Sleep(time.Second * time.Duration(delay))
 			err = ExecuteReduceTask(reducef, &task)
 			if err != nil {
 
@@ -78,7 +78,7 @@ func Worker(mapf func(string, string) []KeyValue, reducef func(string, []string)
 		case EXIT:
 			doing = false
 		case UNDEFIDED:
-			logger.Debug(logger.DError, "got UNDEFIDED task %+v", task)
+			logger.Debug(logger.DError, "got UNDEFIDED task %+v", &task)
 		}
 		time.Sleep(time.Second)
 	}
